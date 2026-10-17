@@ -320,3 +320,13 @@ legend { font-weight: 600; font-size: .9rem; padding: 0 6px; }
 .notice { padding: 10px 12px; border-radius: 10px; border: 1.5px solid; font-weight: 600; font-size: .92rem; }
 .notice.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
 .notice.bad { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+
+/* Niveau-Wortschatz */
+.section-title { font-size: 1rem; margin: 22px 0 10px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.section-title:first-of-type { margin-top: 0; }
+.section-title small { font-weight: 500; font-size: .8rem; }
+.source { margin-top: 18px; }
+.filter { margin-bottom: 8px; }
+.pos { font-style: normal; font-size: .72rem; color: var(--muted); background: var(--surface-2); border-radius: 99px; padding: 1px 7px; margin-left: 4px; }
+.q-pos { font-size: .75rem; font-weight: 600; color: var(--muted); background: var(--surface-2); border-radius: 99px; padding: 2px 9px; }
+.level-checks { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; }

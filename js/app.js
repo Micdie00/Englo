@@ -1,5 +1,5 @@
 import * as store from './store.js';
-import { allCategories, getCategory, topics, groups, getTopic, allVocab, allGrammar, allItems } from './content.js';
+import { allCategories, getCategory, topics, groups, getTopic, allVocab, allGrammar, allItems, levelCategories, themeCategories, acceptedEnglish, POS_LABEL, LEVELS } from './content.js';
 import { Session, buildQueue, mcOptions, shuffle } from './session.js';
 import { checkVocab, checkGrammar, wordDiff, vocabAnswers, matches } from './check.js';
 import { speak, ttsSupported, recognitionSupported, listen, englishVoices } from './speech.js';
@@ -111,7 +111,7 @@ function renderHome() {
   const t = store.today();
   const streak = store.streak();
   const due = allItems().filter(it => store.isDue(it.id)).length;
-  const fresh = allVocab().filter(it => store.isNew(it.id)).length;
+  const fresh = newWordPool().filter(it => store.isNew(it.id)).length;
   const tenses = topics.filter(tp => tp.group === 'tenses');
   const tips = allVocab().filter(w => w.note);
   const tip = tips[Math.floor(Date.now() / 86400000) % tips.length];
@@ -137,7 +137,7 @@ function renderHome() {
       <span class="a-icon">🔁</span><span><b>Wiederholen</b><small>${Math.min(due, s.sessionLen)} von ${due} fälligen Übungen</small></span>
     </button>` : ''}
     <button class="action ${due ? '' : 'primary'}" id="new" ${fresh ? '' : 'disabled'}>
-      <span class="a-icon">✨</span><span><b>Neue Wörter</b><small>${due ? '' : 'Nichts fällig – Zeit für Neues! · '}${s.newPerSession} neue Vokabeln aus allen Themen</small></span>
+      <span class="a-icon">✨</span><span><b>Neue Wörter</b><small>${due ? '' : 'Nichts fällig – Zeit für Neues! · '}${s.newPerSession} neue Vokabeln · ${esc(newWordSourceLabel())}</small></span>
     </button>
     <button class="action" id="tenses">
       <span class="a-icon">⏳</span><span><b>Tenses-Training</b><small>Gemischte Übungen zu allen Zeitformen</small></span>
@@ -166,7 +166,8 @@ function renderHome() {
     startSession('Wiederholung', items, '#/');
   });
   $('#new')?.addEventListener('click', () => {
-    const items = buildQueue(allVocab(), { len: s.newPerSession, newMax: s.newPerSession, shuffleNew: true });
+    const items = buildQueue(newWordPool(), { len: s.newPerSession, newMax: s.newPerSession, shuffleNew: true });
+    if (!items.length) { toast('Keine neuen Wörter mehr in den gewählten Niveaus – ändere die Auswahl unter „Mehr“.'); return; }
     startSession('Neue Wörter', items, '#/');
   });
   $('#tenses').addEventListener('click', () => {
@@ -178,6 +179,22 @@ function renderHome() {
   });
   $('#install')?.addEventListener('click', doInstall);
   bindSay(view);
+}
+
+// Woher kommen „Neue Wörter“? (Einstellung: Themen und/oder Niveaustufen)
+function newWordSources() {
+  const src = store.settings().newLevels;
+  return Array.isArray(src) && src.length ? src : ['themes', 'B1', 'B2', 'C1'];
+}
+function newWordPool() {
+  const src = newWordSources();
+  const pool = [];
+  if (src.includes('themes')) pool.push(...themeCategories().flatMap(c => c.words));
+  for (const c of levelCategories) if (src.includes(c.level)) pool.push(...c.words);
+  return pool;
+}
+function newWordSourceLabel() {
+  return newWordSources().map(x => x === 'themes' ? 'Themen' : x).join(', ');
 }
 
 function topicRow(tp) {
@@ -193,26 +210,28 @@ function bindSay(root) {
 }
 
 // ───────────────────────── Vokabeln ─────────────────────────
+function catCard(c) {
+  const cp = progressOf(c.words);
+  return `<a class="cat-card" href="#/vocab/${c.id}">
+    <div class="cat-icon">${c.icon}</div>
+    <div class="cat-name">${esc(c.name)}</div>
+    <div class="cat-meta">${c.id === 'custom' && !c.words.length ? 'Eigene Wörter hinzufügen' : `${cp.learned} / ${cp.total.toLocaleString('de-AT')}`}${cp.due ? ` · <span class="due-txt">${cp.due} fällig</span>` : ''}</div>
+    ${bar(cp.learned, cp.total)}
+  </a>`;
+}
+
 function renderVocab() {
-  const cats = allCategories();
-  const all = allVocab();
-  const p = progressOf(all);
+  const p = progressOf(allVocab());
   view.innerHTML = `
   <header class="page-head">
     <h1>Vokabeln</h1>
-    <p class="muted">${p.learned} von ${p.total} Wörtern gelernt · ${p.mastered} gefestigt</p>
+    <p class="muted">${p.learned} von ${p.total.toLocaleString('de-AT')} Wörtern gelernt · ${p.mastered} gefestigt</p>
   </header>
-  <div class="cat-grid">
-    ${cats.map(c => {
-      const cp = progressOf(c.words);
-      return `<a class="cat-card" href="#/vocab/${c.id}">
-        <div class="cat-icon">${c.icon}</div>
-        <div class="cat-name">${esc(c.name)}</div>
-        <div class="cat-meta">${c.id === 'custom' && !c.words.length ? 'Eigene Wörter hinzufügen' : `${cp.learned} / ${cp.total}`}${cp.due ? ` · <span class="due-txt">${cp.due} fällig</span>` : ''}</div>
-        ${bar(cp.learned, cp.total)}
-      </a>`;
-    }).join('')}
-  </div>`;
+  <h2 class="section-title">Nach Thema</h2>
+  <div class="cat-grid">${themeCategories().map(catCard).join('')}</div>
+  <h2 class="section-title">Nach Niveau <small class="muted">Grundwortschatz A1–C2</small></h2>
+  <div class="cat-grid">${levelCategories.map(catCard).join('')}</div>
+  <p class="muted small source">Wortlisten: CEFR-J Wordlist 1.5 (Tono Laboratory, TUFS) und Octanove Vocabulary Profile C1/C2 (CC BY-SA 4.0).</p>`;
 }
 
 function renderCategory(id) {
@@ -242,28 +261,45 @@ function renderCategory(id) {
     <button class="btn primary">Hinzufügen</button>
   </form>` : ''}
   <section class="card">
-    <ul class="word-list">
-      ${c.words.map(w => {
-        const lv = store.level(w.id);
-        return `<li>
-          <span class="lv lv-${lv}" title="${labels[lv]}"></span>
-          <div class="wl-main"><b>${esc(w.de)}</b><span>${esc(w.en)}</span>${w.note ? `<small class="note">${esc(w.note)}</small>` : ''}</div>
-          <button class="icon-btn" data-say="${esc(vocabAnswers(w.en)[0])}" aria-label="Vorlesen">🔊</button>
-          ${isCustom ? `<button class="icon-btn" data-del="${w.id}" aria-label="Löschen">🗑️</button>` : ''}
-        </li>`;
-      }).join('') || '<li class="muted">Noch keine Wörter.</li>'}
-    </ul>
+    ${c.words.length > 40 ? `<input type="search" id="filter" class="filter" placeholder="Suchen (Deutsch oder Englisch) …" autocomplete="off" autocapitalize="off" spellcheck="false">` : ''}
+    <ul class="word-list" id="words"></ul>
+    <p class="muted small" id="more"></p>
   </section>
   <p class="legend"><span class="lv lv-new"></span>neu <span class="lv lv-struggling"></span>schwierig <span class="lv lv-learning"></span>lerne ich <span class="lv lv-mastered"></span>gefestigt</p>
   `;
 
+  const LIMIT = 150;
+  const renderWords = (q = '') => {
+    const needle = q.trim().toLowerCase();
+    const list = needle ? c.words.filter(w => w.de.toLowerCase().includes(needle) || w.en.toLowerCase().includes(needle)) : c.words;
+    $('#words').innerHTML = list.slice(0, LIMIT).map(w => {
+      const lv = store.level(w.id);
+      return `<li>
+        <span class="lv lv-${lv}" title="${labels[lv]}"></span>
+        <div class="wl-main"><b>${esc(w.de)}</b><span>${esc(w.en)}${w.pos ? ` <em class="pos">${POS_LABEL[w.pos] || ''}</em>` : ''}</span>${w.note ? `<small class="note">${esc(w.note)}</small>` : ''}</div>
+        <button class="icon-btn" data-say="${esc(vocabAnswers(w.en)[0])}" aria-label="Vorlesen">🔊</button>
+        ${isCustom ? `<button class="icon-btn" data-del="${w.id}" aria-label="Löschen">🗑️</button>` : ''}
+      </li>`;
+    }).join('') || `<li class="muted">${needle ? 'Nichts gefunden.' : 'Noch keine Wörter.'}</li>`;
+    $('#more').textContent = list.length > LIMIT ? `${LIMIT} von ${list.length.toLocaleString('de-AT')} angezeigt – nutze die Suche.` : '';
+    bindSay($('#words'));
+    $$('[data-del]', $('#words')).forEach(b => b.addEventListener('click', () => {
+      if (!confirm('Dieses Wort löschen?')) return;
+      store.deleteCustom(b.dataset.del);
+      sync.scheduleSync();
+      renderCategory(id);
+    }));
+  };
+  renderWords();
+  $('#filter')?.addEventListener('input', e => renderWords(e.target.value));
+
   $('#learn').addEventListener('click', () => {
-    const items = buildQueue(c.words, { len: s.sessionLen, newMax: s.newPerSession });
+    const items = buildQueue(c.words, { len: s.sessionLen, newMax: s.newPerSession, shuffleNew: !!c.level });
     if (!items.length) { toast('Nichts fällig und keine neuen Wörter – probier „Alles üben“.'); return; }
     startSession(c.name, items, `#/vocab/${id}`);
   });
   $('#practice').addEventListener('click', () => {
-    startSession(c.name, buildQueue(c.words, { len: s.sessionLen, newMax: s.sessionLen, fill: true }), `#/vocab/${id}`, true);
+    startSession(c.name, buildQueue(c.words, { len: s.sessionLen, newMax: s.sessionLen, fill: true, shuffleNew: true }), `#/vocab/${id}`, true);
   });
   $('#add')?.addEventListener('submit', e => {
     e.preventDefault();
@@ -274,13 +310,6 @@ function renderCategory(id) {
     renderCategory(id);
     $('#add input[name=de]')?.focus();
   });
-  $$('[data-del]').forEach(b => b.addEventListener('click', () => {
-    if (!confirm('Dieses Wort löschen?')) return;
-    store.deleteCustom(b.dataset.del);
-    sync.scheduleSync();
-    renderCategory(id);
-  }));
-  bindSay(view);
 }
 
 // ───────────────────────── Grammatik ─────────────────────────
@@ -422,6 +451,12 @@ function vocabReveal(it) {
   </div>`;
 }
 
+// Deutsche Vorgabe mit Wortart/Niveau als Hilfe
+function dePrompt(it) {
+  const tags = [it.pos && POS_LABEL[it.pos], it.level].filter(Boolean).join(' · ');
+  return esc(it.de) + (tags ? ` <span class="q-pos">${tags}</span>` : '');
+}
+
 function autoSay(it) {
   if (store.settings().autoSpeak !== false) speak(vocabAnswers(it.en)[0]);
 }
@@ -441,7 +476,7 @@ function renderVocabQ(q) {
     const { opts, correct } = mcOptions(it, rev);
     card.innerHTML = `
       <div class="q-label">${rev ? 'Was bedeutet das?' : 'Wie heißt das auf Englisch?'}</div>
-      <div class="q-prompt">${rev ? `${esc(vocabAnswers(it.en)[0])} <button class="icon-btn" data-say="${esc(vocabAnswers(it.en)[0])}">🔊</button>` : esc(it.de)}</div>
+      <div class="q-prompt">${rev ? `${esc(vocabAnswers(it.en)[0])} <button class="icon-btn" data-say="${esc(vocabAnswers(it.en)[0])}">🔊</button>` : dePrompt(it)}</div>
       <div class="opts">${opts.map((o, i) => `<button class="opt" data-i="${i}"><kbd>${i + 1}</kbd>${esc(o)}</button>`).join('')}</div>`;
     bindSay(card);
     if (rev) speak(vocabAnswers(it.en)[0]);
@@ -479,7 +514,7 @@ function renderVocabQ(q) {
   if (q.mode === 'speak') {
     card.innerHTML = `
       <div class="q-label">Sag es auf Englisch 🎤</div>
-      <div class="q-prompt">${esc(it.de)}</div>
+      <div class="q-prompt">${dePrompt(it)}</div>
       <div class="speak-box"><button class="mic" id="mic" aria-label="Sprechen">🎤</button><div class="heard muted" id="heard">Tippe aufs Mikrofon und sprich.</div></div>`;
     setActions(`<button class="btn ghost" id="totype">Lieber tippen</button><button class="btn ghost" id="dunno">Weiß ich nicht</button>`);
     $('#mic').addEventListener('click', async () => {
@@ -489,7 +524,7 @@ function renderVocabQ(q) {
       try {
         const alts = await listen();
         mic.classList.remove('rec');
-        const hit = alts.find(a => checkVocab(a, it.en).result !== 'wrong');
+        const hit = alts.find(a => checkVocab(a, acceptedEnglish(it)).result !== 'wrong');
         $('#heard').innerHTML = `Verstanden: „${esc(hit || alts[0])}“`;
         if (hit) finish(true);
         else {
@@ -511,14 +546,14 @@ function renderVocabQ(q) {
   // Standard: tippen (Deutsch → Englisch)
   card.innerHTML = `
     <div class="q-label">Übersetze ins Englische</div>
-    <div class="q-prompt">${esc(it.de)}</div>
+    <div class="q-prompt">${dePrompt(it)}</div>
     ${textInput('auf Englisch …')}`;
   setActions(`<button class="btn ghost" id="dunno">Weiß ich nicht</button><button class="btn primary" id="check">Prüfen</button>`);
   const submit = () => {
     if ($('#fb').hidden === false) return;
     const val = $('#ans').value;
     if (!val.trim()) { $('#ans').focus(); return; }
-    const r = checkVocab(val, it.en);
+    const r = checkVocab(val, acceptedEnglish(it));
     finish(r.result !== 'wrong', r.result === 'wrong' ? `<div class="yours">Deine Antwort: <s>${esc(val)}</s></div>` : '', { canOverride: true, typo: r.result === 'typo' });
   };
   bindSubmit(submit);
@@ -682,6 +717,10 @@ async function renderSettings() {
       <label class="check"><input type="checkbox" data-mode="listen" ${s.modes.listen ? 'checked' : ''} ${ttsSupported() ? '' : 'disabled'}> 👂 Hören & schreiben</label>
       <label class="check"><input type="checkbox" data-mode="speak" ${s.modes.speak ? 'checked' : ''} ${recognitionSupported() ? '' : 'disabled'}> 🎤 Sprechen ${recognitionSupported() ? '' : '<small class="muted">(in diesem Browser nicht verfügbar)</small>'}</label>
     </fieldset>
+    <fieldset><legend>„Neue Wörter“ kommen aus</legend>
+      <label class="check"><input type="checkbox" data-src="themes" ${newWordSources().includes('themes') ? 'checked' : ''}> Themen-Wortschatz (Phrasal Verbs, Business, False Friends …)</label>
+      <div class="level-checks">${LEVELS.map(lv => `<label class="check"><input type="checkbox" data-src="${lv}" ${newWordSources().includes(lv) ? 'checked' : ''}> ${lv}</label>`).join('')}</div>
+    </fieldset>
   </section>
 
   <section class="card form">
@@ -709,13 +748,20 @@ async function renderSettings() {
     </div>
     <button class="btn danger" id="reset">Fortschritt zurücksetzen</button>
   </section>
-  <p class="muted small center">Englisch lernen · Version ${window.APP_VERSION || ''}</p>
+  <p class="muted small center">Englisch lernen · Version ${window.APP_VERSION || ''}<br>
+    Wortlisten: CEFR-J Wordlist 1.5 (Yukio Tono, Tokyo University of Foreign Studies) ·
+    Octanove Vocabulary Profile C1/C2 (Octanove Labs, CC BY-SA 4.0) · deutsche Übersetzungen eigens erstellt</p>
   `;
 
   const num = id => $('#' + id).addEventListener('change', e => store.setSetting(id, +e.target.value));
   ['goal', 'sessionLen', 'newPerSession'].forEach(num);
   $$('[data-mode]').forEach(c => c.addEventListener('change', () => {
     store.setSetting('modes', { ...store.settings().modes, [c.dataset.mode]: c.checked });
+  }));
+  $$('[data-src]').forEach(c => c.addEventListener('change', () => {
+    const chosen = $$('[data-src]').filter(x => x.checked).map(x => x.dataset.src);
+    if (!chosen.length) { c.checked = true; toast('Mindestens eine Quelle muss ausgewählt sein.'); return; }
+    store.setSetting('newLevels', chosen);
   }));
   $('#voice').addEventListener('change', e => { store.setSetting('voice', e.target.value); speak('Hello! How are you today?'); });
   $('#rate').addEventListener('input', e => { $('#rate-val').textContent = (+e.target.value).toFixed(2); });

@@ -5,7 +5,8 @@ Läuft als installierbare Web-App (PWA) auf PC und Android, funktioniert offline
 
 ## Inhalt
 
-- **371 Vokabeln** in 12 Themen (Phrasal Verbs, Business, Kollokationen, False Friends, Redewendungen …), dazu eigene Wörter
+- **371 Themen-Vokabeln** in 12 Themen (Phrasal Verbs, Business, Kollokationen, False Friends, Redewendungen …), dazu eigene Wörter
+- **9.458 Wörter nach Niveau A1–C2** (Nomen, Verben, Adjektive, Adverbien) mit deutscher Übersetzung
 - **20 Grammatik-Themen mit 226 Übungen**, davon 9 zu Zeitformen
 - Übungsarten: Tippen, Multiple Choice, Hören & Schreiben, Sprechen (Mikrofon), Lückentext, Fehler korrigieren, Satz übersetzen
 - Wiederholungssystem (Spaced Repetition): Was du schlecht kannst, kommt öfter
@@ -55,3 +56,9 @@ Danach http://localhost:5173 öffnen. Lokal ist der Service Worker abgeschaltet,
 
 - Vokabeln: [`js/data/vocab.js`](js/data/vocab.js) im Format `[Deutsch, Englisch (Varianten mit " / "), Beispielsatz, Hinweis]`
 - Grammatik: [`js/data/grammar.js`](js/data/grammar.js). Neue Übungen nur **hinten** an ein Thema anhängen, weil sich die ID aus der Position ergibt.
+
+## Quellen der Niveau-Wortlisten
+
+- **A1–B2:** The CEFR-J Wordlist Version 1.5, compiled by Yukio Tono, Tokyo University of Foreign Studies ([cefr-j.org](http://www.cefr-j.org/), via [openlanguageprofiles/olp-en-cefrj](https://github.com/openlanguageprofiles/olp-en-cefrj)). Frei nutzbar für Forschung und kommerzielle Zwecke bei korrekter Quellenangabe.
+- **C1–C2:** Octanove Vocabulary Profile C1/C2 1.0 von Octanove Labs, Lizenz [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+- Die deutschen Übersetzungen wurden für diese App erstellt. Die C1/C2-Daten in [`js/data/levels.js`](js/data/levels.js) stehen samt Übersetzungen ebenfalls unter CC BY-SA 4.0.

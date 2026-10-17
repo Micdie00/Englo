@@ -52,6 +52,11 @@ export function pickMode(item) {
 export function mcOptions(item, reverse) {
   const sameCat = allCategories().find(c => c.id === item.cat)?.words || [];
   let pool = sameCat.filter(w => w.id !== item.id);
+  if (item.pos) {
+    // gleiche Wortart als Ablenker, sonst ist die Lösung zu leicht zu erraten
+    const samePos = pool.filter(w => w.pos === item.pos);
+    if (samePos.length >= 3) pool = samePos;
+  }
   if (pool.length < 3) pool = allVocab().filter(w => w.id !== item.id);
   const label = w => reverse ? w.de : vocabAnswers(w.en)[0];
   const correct = label(item);
