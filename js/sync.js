@@ -30,6 +30,8 @@ function authError(error) {
   if (/email not confirmed/i.test(m)) return 'Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Bestätigungsmail).';
   if (/already registered/i.test(m)) return 'Diese E-Mail ist schon registriert – bitte anmelden.';
   if (/password should be/i.test(m)) return 'Das Passwort muss mindestens 6 Zeichen haben.';
+  if (/should be different from the old/i.test(m)) return 'Das neue Passwort muss sich vom alten unterscheiden.';
+  if (/rate limit|security purposes/i.test(m)) return 'Zu viele Versuche – bitte warte ein paar Minuten und probier es dann nochmal.';
   return m;
 }
 
@@ -46,9 +48,24 @@ export async function handleAuthRedirect(hash) {
     throw new Error(p.get('error_description')?.replace(/\+/g, ' ') || 'Anmeldung über den Link fehlgeschlagen.');
   }
   const access_token = p.get('access_token'), refresh_token = p.get('refresh_token');
-  if (!access_token || !refresh_token) return;
+  if (!access_token || !refresh_token) return null;
   const c = await client();
   const { error } = await c.auth.setSession({ access_token, refresh_token });
+  if (error) throw new Error(authError(error));
+  const type = p.get('type'); // 'signup' | 'recovery' | 'magiclink' …
+  if (type !== 'recovery') await syncNow();
+  return type;
+}
+
+export async function requestPasswordReset(email) {
+  const c = await client();
+  const { error } = await c.auth.resetPasswordForEmail(email.trim(), { redirectTo: location.origin + location.pathname });
+  if (error) throw new Error(authError(error));
+}
+
+export async function updatePassword(password) {
+  const c = await client();
+  const { error } = await c.auth.updateUser({ password });
   if (error) throw new Error(authError(error));
   await syncNow();
 }

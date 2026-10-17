@@ -12,6 +12,7 @@ const view = $('#view');
 
 let session = null;
 let installPrompt = null;
+let passwordRecovery = false; // nach Klick auf den Link aus der „Passwort zurücksetzen“-Mail
 
 // ───────────────────────── Router ─────────────────────────
 const routes = [
@@ -30,7 +31,11 @@ function route() {
   if (sync.isAuthRedirect(h)) {
     history.replaceState(null, '', location.pathname + '#/settings');
     sync.handleAuthRedirect(h)
-      .then(() => { toast('E-Mail bestätigt und angemeldet ✓'); route(); })
+      .then(type => {
+        if (type === 'recovery') { passwordRecovery = true; toast('Bitte lege jetzt ein neues Passwort fest.', 5000); }
+        else if (type) toast('E-Mail bestätigt und angemeldet ✓');
+        route();
+      })
       .catch(err => { toast(err.message, 8000); route(); });
     return;
   }
@@ -745,6 +750,30 @@ async function renderSyncCard() {
   let user = null;
   try { user = await sync.currentUser(); } catch { /* offline */ }
   if (!$('#sync-body')) return;
+  if (user && passwordRecovery) {
+    body.innerHTML = `
+      <p>Neues Passwort für <b>${esc(user.email)}</b> festlegen:</p>
+      <form id="newpw" class="form">
+        <label>Neues Passwort<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
+        <label>Wiederholen<input type="password" name="password2" required minlength="6" autocomplete="new-password"></label>
+        <button class="btn primary">Passwort speichern</button>
+        <p class="warn small" id="pw-err"></p>
+      </form>`;
+    $('#newpw').addEventListener('submit', async e => {
+      e.preventDefault();
+      const f = new FormData(e.target);
+      if (f.get('password') !== f.get('password2')) { $('#pw-err').textContent = 'Die beiden Passwörter stimmen nicht überein.'; return; }
+      const btn = $('#newpw button');
+      btn.disabled = true;
+      try {
+        await sync.updatePassword(f.get('password'));
+        passwordRecovery = false;
+        toast('Neues Passwort gespeichert ✓ Du bist angemeldet.');
+        renderSyncCard();
+      } catch (err) { $('#pw-err').textContent = err.message; btn.disabled = false; }
+    });
+    return;
+  }
   if (user) {
     const last = store.meta('lastSync');
     body.innerHTML = `
@@ -765,7 +794,18 @@ async function renderSyncCard() {
         <label>Passwort<input type="password" name="password" required minlength="6" autocomplete="current-password"></label>
         <div class="btn-row"><button class="btn primary" value="in">Anmelden</button><button class="btn" value="up">Registrieren</button></div>
         <p class="warn small" id="login-err"></p>
+        <button type="button" class="btn ghost sm" id="forgot">Passwort vergessen?</button>
       </form>`;
+    $('#forgot').addEventListener('click', async e => {
+      const email = $('#login').email.value.trim();
+      if (!email || !$('#login').email.checkValidity()) { $('#login-err').textContent = 'Gib oben deine E-Mail-Adresse ein und tippe dann nochmal auf „Passwort vergessen?“.'; $('#login').email.focus(); return; }
+      e.target.disabled = true;
+      try {
+        await sync.requestPasswordReset(email);
+        $('#login-err').textContent = `Wir haben dir eine Mail an ${email} geschickt. Öffne den Link darin auf diesem Gerät und lege ein neues Passwort fest. (Auch im Spam-Ordner nachsehen.)`;
+      } catch (err) { $('#login-err').textContent = err.message; }
+      e.target.disabled = false;
+    });
     $('#login').addEventListener('submit', async e => {
       e.preventDefault();
       const mode = e.submitter?.value || 'in';
