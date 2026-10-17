@@ -33,7 +33,28 @@ function authError(error) {
   return m;
 }
 
+// Rückkehr über den Bestätigungslink aus der Mail: #access_token=…&refresh_token=… bzw. #error=…
+export function isAuthRedirect(hash) {
+  return /(^|[#&])(access_token|error_description|error_code)=/.test(hash);
+}
+
+export async function handleAuthRedirect(hash) {
+  const p = new URLSearchParams(hash.replace(/^#\/?/, ''));
+  if (p.get('error_description') || p.get('error_code')) {
+    const code = p.get('error_code');
+    if (code === 'otp_expired') throw new Error('Der Bestätigungslink ist abgelaufen oder wurde schon benutzt. Melde dich einfach mit E-Mail und Passwort an – falls das nicht klappt, registriere dich nochmal.');
+    throw new Error(p.get('error_description')?.replace(/\+/g, ' ') || 'Anmeldung über den Link fehlgeschlagen.');
+  }
+  const access_token = p.get('access_token'), refresh_token = p.get('refresh_token');
+  if (!access_token || !refresh_token) return;
+  const c = await client();
+  const { error } = await c.auth.setSession({ access_token, refresh_token });
+  if (error) throw new Error(authError(error));
+  await syncNow();
+}
+
 export async function signIn(email, password) {
+  email = email.trim();
   const c = await client();
   const { error } = await c.auth.signInWithPassword({ email, password });
   if (error) throw new Error(authError(error));
@@ -41,6 +62,7 @@ export async function signIn(email, password) {
 }
 
 export async function signUp(email, password) {
+  email = email.trim();
   const c = await client();
   const redirect = location.origin + location.pathname;
   const { data, error } = await c.auth.signUp({ email, password, options: { emailRedirectTo: redirect } });

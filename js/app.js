@@ -27,6 +27,13 @@ const routes = [
 
 function route() {
   const h = location.hash || '#/';
+  if (sync.isAuthRedirect(h)) {
+    history.replaceState(null, '', location.pathname + '#/settings');
+    sync.handleAuthRedirect(h)
+      .then(() => { toast('E-Mail bestätigt und angemeldet ✓'); route(); })
+      .catch(err => { toast(err.message, 8000); route(); });
+    return;
+  }
   if (h !== '#/session' && session) { session = null; sync.scheduleSync(1000); }
   document.body.classList.toggle('in-session', h === '#/session');
   for (const [re, fn] of routes) {
@@ -754,7 +761,7 @@ async function renderSyncCard() {
     body.innerHTML = `
       <p class="muted">Melde dich an, um deinen Fortschritt auf allen Geräten zu haben.</p>
       <form id="login" class="form">
-        <label>E-Mail<input type="email" name="email" required autocomplete="email"></label>
+        <label>E-Mail<input type="email" name="email" required autocomplete="email" autocapitalize="off" spellcheck="false"></label>
         <label>Passwort<input type="password" name="password" required minlength="6" autocomplete="current-password"></label>
         <div class="btn-row"><button class="btn primary" value="in">Anmelden</button><button class="btn" value="up">Registrieren</button></div>
         <p class="warn small" id="login-err"></p>
