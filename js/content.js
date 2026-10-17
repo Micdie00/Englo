@@ -1,6 +1,7 @@
 // Baut aus den Datendateien einen Index aller lernbaren Elemente.
 import { vocabCategories } from './data/vocab.js';
 import { levelLists } from './data/levels.js';
+import { levelTopics } from './data/level-topics.js';
 import { grammarGroups, grammarTopics } from './data/grammar.js';
 import { customWords } from './store.js';
 
@@ -55,10 +56,50 @@ export function customCategory() {
   };
 }
 
-export function themeCategories() { return [...categories, customCategory()]; }
+// ── Themen = kuratierte Themen + passende Niveau-Wörter ──
+const TOPIC_OF_CODE = {
+  W: 'work', A: 'everyday', G: 'feelings', D: 'discussion', R: 'travel', H: 'health', T: 'tech', M: 'money',
+  E: 'food', N: 'nature', P: 'people', K: 'clothes', B: 'education', F: 'leisure', C: 'culture', S: 'society', X: 'general',
+};
+const RENAME = { everyday: 'Alltag & Wohnen', health: 'Gesundheit & Körper', discussion: 'Sprache & Diskussion' };
+const EXTRA_TOPICS = [
+  { id: 'food', name: 'Essen & Trinken', icon: '🍽️' },
+  { id: 'nature', name: 'Natur, Tiere & Umwelt', icon: '🌍' },
+  { id: 'people', name: 'Menschen & Beziehungen', icon: '👨‍👩‍👧' },
+  { id: 'clothes', name: 'Kleidung & Aussehen', icon: '👕' },
+  { id: 'education', name: 'Schule & Wissenschaft', icon: '🎓' },
+  { id: 'leisure', name: 'Freizeit & Sport', icon: '⚽' },
+  { id: 'culture', name: 'Kunst, Kultur & Medien', icon: '🎨' },
+  { id: 'society', name: 'Politik, Gesellschaft & Recht', icon: '🏛️' },
+  { id: 'general', name: 'Allgemeiner Wortschatz', icon: '📖' },
+];
 
+const mergedThemes = (() => {
+  const themes = [
+    ...categories.map(c => ({ ...c, name: RENAME[c.id] || c.name, words: [...c.words] })),
+    ...EXTRA_TOPICS.map(t => ({ ...t, words: [] })),
+  ];
+  const byTopic = new Map(themes.map(t => [t.id, t]));
+  for (const lc of levelCategories) {
+    const codes = levelTopics[lc.level] || '';
+    lc.words.forEach((w, i) => {
+      const t = byTopic.get(TOPIC_OF_CODE[codes[i]] || 'general');
+      w.topic = t.id;
+      t.words.push(w);
+    });
+  }
+  for (const t of themes) t.mixed = t.words.some(w => w.level);
+  return themes;
+})();
+
+// Nur die handverlesenen Themen-Wörter (ohne Niveau-Listen), z. B. für die Quelle „Themen“ bei „Neue Wörter“
+export function curatedWords() { return [...categories, customCategory()].flatMap(c => c.words); }
+
+export function themeCategories() { return [...mergedThemes, customCategory()]; }
+
+// Für Nachschlagen per ID (Themen und Niveaus überlappen – nicht zum Zählen verwenden!)
 export function allCategories() {
-  return [...categories, ...levelCategories, customCategory()];
+  return [...themeCategories(), ...levelCategories];
 }
 
 export function getItem(id) {
@@ -70,7 +111,8 @@ export function getItem(id) {
 export function getCategory(id) { return allCategories().find(c => c.id === id); }
 export function getTopic(id) { return topics.find(t => t.id === id); }
 
-export function allVocab() { return allCategories().flatMap(c => c.words); }
+// Jedes Wort genau einmal
+export function allVocab() { return [...curatedWords(), ...levelCategories.flatMap(c => c.words)]; }
 export function allGrammar() { return topics.flatMap(t => t.items); }
 export function allItems() { return [...allVocab(), ...allGrammar()]; }
 

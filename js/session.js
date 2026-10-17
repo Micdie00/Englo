@@ -50,7 +50,8 @@ export function pickMode(item) {
 }
 
 export function mcOptions(item, reverse) {
-  const sameCat = allCategories().find(c => c.id === item.cat)?.words || [];
+  // Ablenker bevorzugt aus demselben Thema (Niveau-Wörter haben zusätzlich ein Thema)
+  const sameCat = allCategories().find(c => c.id === (item.topic || item.cat))?.words || [];
   let pool = sameCat.filter(w => w.id !== item.id);
   if (item.pos) {
     // gleiche Wortart als Ablenker, sonst ist die Lösung zu leicht zu erraten

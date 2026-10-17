@@ -6,7 +6,7 @@ Läuft als installierbare Web-App (PWA) auf PC und Android, funktioniert offline
 ## Inhalt
 
 - **371 Themen-Vokabeln** in 12 Themen (Phrasal Verbs, Business, Kollokationen, False Friends, Redewendungen …), dazu eigene Wörter
-- **9.458 Wörter nach Niveau A1–C2** (Nomen, Verben, Adjektive, Adverbien) mit deutscher Übersetzung
+- **9.458 Wörter nach Niveau A1–C2** (Nomen, Verben, Adjektive, Adverbien) mit deutscher Übersetzung – zusätzlich nach 21 Themen sortiert
 - **20 Grammatik-Themen mit 226 Übungen**, davon 9 zu Zeitformen
 - Übungsarten: Tippen, Multiple Choice, Hören & Schreiben, Sprechen (Mikrofon), Lückentext, Fehler korrigieren, Satz übersetzen
 - Wiederholungssystem (Spaced Repetition): Was du schlecht kannst, kommt öfter

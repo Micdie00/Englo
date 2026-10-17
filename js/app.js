@@ -1,5 +1,5 @@
 import * as store from './store.js';
-import { allCategories, getCategory, topics, groups, getTopic, allVocab, allGrammar, allItems, levelCategories, themeCategories, acceptedEnglish, POS_LABEL, LEVELS } from './content.js';
+import { allCategories, getCategory, topics, groups, getTopic, allVocab, allGrammar, allItems, levelCategories, themeCategories, curatedWords, acceptedEnglish, POS_LABEL, LEVELS } from './content.js';
 import { Session, buildQueue, mcOptions, shuffle } from './session.js';
 import { checkVocab, checkGrammar, wordDiff, vocabAnswers, matches } from './check.js';
 import { speak, ttsSupported, recognitionSupported, listen, englishVoices } from './speech.js';
@@ -189,7 +189,7 @@ function newWordSources() {
 function newWordPool() {
   const src = newWordSources();
   const pool = [];
-  if (src.includes('themes')) pool.push(...themeCategories().flatMap(c => c.words));
+  if (src.includes('themes')) pool.push(...curatedWords());
   for (const c of levelCategories) if (src.includes(c.level)) pool.push(...c.words);
   return pool;
 }
@@ -276,7 +276,7 @@ function renderCategory(id) {
       const lv = store.level(w.id);
       return `<li>
         <span class="lv lv-${lv}" title="${labels[lv]}"></span>
-        <div class="wl-main"><b>${esc(w.de)}</b><span>${esc(w.en)}${w.pos ? ` <em class="pos">${POS_LABEL[w.pos] || ''}</em>` : ''}</span>${w.note ? `<small class="note">${esc(w.note)}</small>` : ''}</div>
+        <div class="wl-main"><b>${esc(w.de)}</b><span>${esc(w.en)}${w.pos ? ` <em class="pos">${POS_LABEL[w.pos] || ''}</em>` : ''}${w.level && !c.level ? ` <em class="pos">${w.level}</em>` : ''}</span>${w.note ? `<small class="note">${esc(w.note)}</small>` : ''}</div>
         <button class="icon-btn" data-say="${esc(vocabAnswers(w.en)[0])}" aria-label="Vorlesen">🔊</button>
         ${isCustom ? `<button class="icon-btn" data-del="${w.id}" aria-label="Löschen">🗑️</button>` : ''}
       </li>`;
@@ -294,7 +294,7 @@ function renderCategory(id) {
   $('#filter')?.addEventListener('input', e => renderWords(e.target.value));
 
   $('#learn').addEventListener('click', () => {
-    const items = buildQueue(c.words, { len: s.sessionLen, newMax: s.newPerSession, shuffleNew: !!c.level });
+    const items = buildQueue(c.words, { len: s.sessionLen, newMax: s.newPerSession, shuffleNew: !!(c.level || c.mixed) });
     if (!items.length) { toast('Nichts fällig und keine neuen Wörter – probier „Alles üben“.'); return; }
     startSession(c.name, items, `#/vocab/${id}`);
   });
@@ -718,7 +718,7 @@ async function renderSettings() {
       <label class="check"><input type="checkbox" data-mode="speak" ${s.modes.speak ? 'checked' : ''} ${recognitionSupported() ? '' : 'disabled'}> 🎤 Sprechen ${recognitionSupported() ? '' : '<small class="muted">(in diesem Browser nicht verfügbar)</small>'}</label>
     </fieldset>
     <fieldset><legend>„Neue Wörter“ kommen aus</legend>
-      <label class="check"><input type="checkbox" data-src="themes" ${newWordSources().includes('themes') ? 'checked' : ''}> Themen-Wortschatz (Phrasal Verbs, Business, False Friends …)</label>
+      <label class="check"><input type="checkbox" data-src="themes" ${newWordSources().includes('themes') ? 'checked' : ''}> Handverlesene Themen-Wörter (Phrasal Verbs, False Friends, Redewendungen …)</label>
       <div class="level-checks">${LEVELS.map(lv => `<label class="check"><input type="checkbox" data-src="${lv}" ${newWordSources().includes(lv) ? 'checked' : ''}> ${lv}</label>`).join('')}</div>
     </fieldset>
   </section>
