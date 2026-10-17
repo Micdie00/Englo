@@ -63,6 +63,16 @@ export async function requestPasswordReset(email) {
   if (error) throw new Error(authError(error));
 }
 
+// Alternative ohne Link: 6-stelliger Code aus der Mail (Vorlage muss {{ .Token }} enthalten)
+export async function verifyRecoveryCode(email, token) {
+  const c = await client();
+  const { error } = await c.auth.verifyOtp({ email: email.trim(), token: token.replace(/\s+/g, ''), type: 'recovery' });
+  if (error) {
+    if (/expired|invalid/i.test(error.message)) throw new Error('Der Code ist falsch oder abgelaufen. Fordere notfalls eine neue Mail an.');
+    throw new Error(authError(error));
+  }
+}
+
 export async function updatePassword(password) {
   const c = await client();
   const { error } = await c.auth.updateUser({ password });

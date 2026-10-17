@@ -315,3 +315,8 @@ legend { font-weight: 600; font-size: .9rem; padding: 0 6px; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 @media (min-width: 900px) { .toast { bottom: 24px; } }
+
+/* Meldung in der Sync-Karte */
+.notice { padding: 10px 12px; border-radius: 10px; border: 1.5px solid; font-weight: 600; font-size: .92rem; }
+.notice.ok { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.notice.bad { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }

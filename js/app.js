@@ -12,7 +12,14 @@ const view = $('#view');
 
 let session = null;
 let installPrompt = null;
-let passwordRecovery = false; // nach Klick auf den Link aus der „Passwort zurücksetzen“-Mail
+// Formular „Neues Passwort“ zeigen (nach Reset-Link/-Code) – überlebt ein Neuladen der App
+const PW_KEY = 'englisch-pw-recovery';
+let passwordRecovery = (() => { try { return localStorage.getItem(PW_KEY) === '1'; } catch { return false; } })();
+function setPasswordRecovery(on) {
+  passwordRecovery = on;
+  try { on ? localStorage.setItem(PW_KEY, '1') : localStorage.removeItem(PW_KEY); } catch { /* egal */ }
+}
+let authNotice = null; // Meldung nach Rückkehr über einen Mail-Link, bleibt in der Sync-Karte stehen
 
 // ───────────────────────── Router ─────────────────────────
 const routes = [
@@ -30,13 +37,16 @@ function route() {
   const h = location.hash || '#/';
   if (sync.isAuthRedirect(h)) {
     history.replaceState(null, '', location.pathname + '#/settings');
+    authNotice = { ok: true, text: 'Link wird verarbeitet …' };
     sync.handleAuthRedirect(h)
       .then(type => {
-        if (type === 'recovery') { passwordRecovery = true; toast('Bitte lege jetzt ein neues Passwort fest.', 5000); }
-        else if (type) toast('E-Mail bestätigt und angemeldet ✓');
+        if (type === 'recovery') { setPasswordRecovery(true); authNotice = { ok: true, text: 'Bitte lege jetzt ein neues Passwort fest.' }; }
+        else if (type) authNotice = { ok: true, text: 'E-Mail bestätigt und angemeldet ✓' };
+        else authNotice = null;
         route();
       })
-      .catch(err => { toast(err.message, 8000); route(); });
+      .catch(err => { authNotice = { ok: false, text: err.message }; route(); });
+    route();
     return;
   }
   if (h !== '#/session' && session) { session = null; sync.scheduleSync(1000); }
@@ -740,25 +750,29 @@ async function renderSettings() {
   renderSyncCard();
 }
 
+let syncCardRender = 0;
 async function renderSyncCard() {
-  const body = $('#sync-body');
-  if (!body) return;
+  const token = ++syncCardRender;
+  if (!$('#sync-body')) return;
   if (!sync.syncConfigured()) {
-    body.innerHTML = `<p>Noch nicht eingerichtet. Trage deine Supabase-URL und den Key in <code>config.js</code> ein, dann kannst du dich hier anmelden und deinen Fortschritt zwischen PC und Handy abgleichen.</p>`;
+    $('#sync-body').innerHTML = `<p>Noch nicht eingerichtet. Trage deine Supabase-URL und den Key in <code>config.js</code> ein, dann kannst du dich hier anmelden und deinen Fortschritt zwischen PC und Handy abgleichen.</p>`;
     return;
   }
   let user = null;
   try { user = await sync.currentUser(); } catch { /* offline */ }
-  if (!$('#sync-body')) return;
+  const body = $('#sync-body');
+  if (!body || token !== syncCardRender) return; // inzwischen neu gezeichnet
+  const notice = authNotice ? `<p class="notice ${authNotice.ok ? 'ok' : 'bad'}">${esc(authNotice.text)}</p>` : '';
   if (user && passwordRecovery) {
-    body.innerHTML = `
+    body.innerHTML = `${notice}
       <p>Neues Passwort für <b>${esc(user.email)}</b> festlegen:</p>
       <form id="newpw" class="form">
         <label>Neues Passwort<input type="password" name="password" required minlength="6" autocomplete="new-password"></label>
         <label>Wiederholen<input type="password" name="password2" required minlength="6" autocomplete="new-password"></label>
-        <button class="btn primary">Passwort speichern</button>
+        <div class="btn-row"><button class="btn primary">Passwort speichern</button><button type="button" class="btn ghost" id="pw-cancel">Abbrechen</button></div>
         <p class="warn small" id="pw-err"></p>
       </form>`;
+    $('#pw-cancel').addEventListener('click', () => { setPasswordRecovery(false); authNotice = null; renderSyncCard(); });
     $('#newpw').addEventListener('submit', async e => {
       e.preventDefault();
       const f = new FormData(e.target);
@@ -767,7 +781,8 @@ async function renderSyncCard() {
       btn.disabled = true;
       try {
         await sync.updatePassword(f.get('password'));
-        passwordRecovery = false;
+        setPasswordRecovery(false);
+        authNotice = null;
         toast('Neues Passwort gespeichert ✓ Du bist angemeldet.');
         renderSyncCard();
       } catch (err) { $('#pw-err').textContent = err.message; btn.disabled = false; }
@@ -776,10 +791,12 @@ async function renderSyncCard() {
   }
   if (user) {
     const last = store.meta('lastSync');
-    body.innerHTML = `
+    body.innerHTML = `${notice}
       <p>Angemeldet als <b>${esc(user.email)}</b></p>
       <p class="muted small" id="last-sync">${last ? 'Zuletzt synchronisiert: ' + new Date(last).toLocaleString('de-AT') : 'Noch nicht synchronisiert'}</p>
-      <div class="btn-row"><button class="btn primary" id="sync-now">🔄 Jetzt synchronisieren</button><button class="btn ghost" id="logout">Abmelden</button></div>`;
+      <div class="btn-row"><button class="btn primary" id="sync-now">🔄 Jetzt synchronisieren</button><button class="btn ghost" id="logout">Abmelden</button></div>
+      <button class="btn ghost sm" id="change-pw">Passwort ändern</button>`;
+    $('#change-pw').addEventListener('click', () => { setPasswordRecovery(true); authNotice = null; renderSyncCard(); });
     $('#sync-now').addEventListener('click', async e => {
       e.target.disabled = true;
       try { await sync.syncNow(); toast('Synchronisiert ✓'); renderSyncCard(); }
@@ -787,7 +804,7 @@ async function renderSyncCard() {
     });
     $('#logout').addEventListener('click', async () => { await sync.signOut(); renderSyncCard(); });
   } else {
-    body.innerHTML = `
+    body.innerHTML = `${notice}
       <p class="muted">Melde dich an, um deinen Fortschritt auf allen Geräten zu haben.</p>
       <form id="login" class="form">
         <label>E-Mail<input type="email" name="email" required autocomplete="email" autocapitalize="off" spellcheck="false"></label>
@@ -795,14 +812,33 @@ async function renderSyncCard() {
         <div class="btn-row"><button class="btn primary" value="in">Anmelden</button><button class="btn" value="up">Registrieren</button></div>
         <p class="warn small" id="login-err"></p>
         <button type="button" class="btn ghost sm" id="forgot">Passwort vergessen?</button>
+      </form>
+      <form id="code-form" class="form" hidden>
+        <label>Code aus der Mail <small class="muted">(falls die Mail einen Code statt/neben dem Link enthält)</small>
+          <input name="code" inputmode="numeric" autocomplete="one-time-code" required minlength="6" maxlength="10"></label>
+        <button class="btn">Code bestätigen</button>
+        <p class="warn small" id="code-err"></p>
       </form>`;
+    $('#code-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = $('#code-form button');
+      btn.disabled = true;
+      $('#code-err').textContent = '';
+      try {
+        await sync.verifyRecoveryCode($('#login').email.value, new FormData(e.target).get('code'));
+        setPasswordRecovery(true);
+        authNotice = { ok: true, text: 'Code bestätigt – lege jetzt ein neues Passwort fest.' };
+        renderSyncCard();
+      } catch (err) { $('#code-err').textContent = err.message; btn.disabled = false; }
+    });
     $('#forgot').addEventListener('click', async e => {
       const email = $('#login').email.value.trim();
       if (!email || !$('#login').email.checkValidity()) { $('#login-err').textContent = 'Gib oben deine E-Mail-Adresse ein und tippe dann nochmal auf „Passwort vergessen?“.'; $('#login').email.focus(); return; }
       e.target.disabled = true;
       try {
         await sync.requestPasswordReset(email);
-        $('#login-err').textContent = `Wir haben dir eine Mail an ${email} geschickt. Öffne den Link darin auf diesem Gerät und lege ein neues Passwort fest. (Auch im Spam-Ordner nachsehen.)`;
+        $('#login-err').textContent = `Mail an ${email} ist unterwegs (auch im Spam nachsehen). Öffne den Link darin auf diesem Gerät – oder gib unten den Code aus der Mail ein.`;
+        $('#code-form').hidden = false;
       } catch (err) { $('#login-err').textContent = err.message; }
       e.target.disabled = false;
     });
