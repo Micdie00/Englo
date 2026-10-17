@@ -276,7 +276,7 @@ function renderCategory(id) {
       const lv = store.level(w.id);
       return `<li>
         <span class="lv lv-${lv}" title="${labels[lv]}"></span>
-        <div class="wl-main"><b>${esc(w.de)}</b><span>${esc(w.en)}${w.pos ? ` <em class="pos">${POS_LABEL[w.pos] || ''}</em>` : ''}${w.level && !c.level ? ` <em class="pos">${w.level}</em>` : ''}</span>${w.note ? `<small class="note">${esc(w.note)}</small>` : ''}</div>
+        <div class="wl-main"><b>${esc(w.de)}</b><span>${esc(w.en)}${w.pos ? ` <em class="pos">${POS_LABEL[w.pos] || ''}</em>` : ''}${w.level && !c.level ? ` <em class="pos">${w.level}</em>` : ''}</span>${w.ex ? `<button class="wl-ex" data-say="${esc(w.ex)}" title="Vorlesen">„${esc(w.ex)}“</button>` : ''}${w.note ? `<small class="note">${esc(w.note)}</small>` : ''}</div>
         <button class="icon-btn" data-say="${esc(vocabAnswers(w.en)[0])}" aria-label="Vorlesen">🔊</button>
         ${isCustom ? `<button class="icon-btn" data-del="${w.id}" aria-label="Löschen">🗑️</button>` : ''}
       </li>`;

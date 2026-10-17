@@ -2,6 +2,7 @@
 import { vocabCategories } from './data/vocab.js';
 import { levelLists } from './data/levels.js';
 import { levelTopics } from './data/level-topics.js';
+import { levelExamples } from './data/level-examples.js';
 import { grammarGroups, grammarTopics } from './data/grammar.js';
 import { customWords } from './store.js';
 
@@ -29,11 +30,12 @@ const LEVEL_INFO = {
 
 export const levelCategories = LEVELS.map(lv => {
   const id = 'lv-' + lv.toLowerCase();
+  const examples = (levelExamples[lv] || '').split('\n');
   return {
     id, level: lv, name: `${lv} · ${LEVEL_INFO[lv][0]}`, icon: LEVEL_INFO[lv][1],
-    words: levelLists[lv].split('\n').map(line => {
+    words: levelLists[lv].split('\n').map((line, i) => {
       const [en, pos, de] = line.split('\t');
-      return { id: `l:${lv}:${slug(en)}:${pos}`, kind: 'vocab', cat: id, level: lv, de, en, pos };
+      return { id: `l:${lv}:${slug(en)}:${pos}`, kind: 'vocab', cat: id, level: lv, de, en, pos, ex: examples[i] || '' };
     }),
   };
 });

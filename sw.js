@@ -1,6 +1,6 @@
 // Service Worker: macht die App offline-fähig.
 // Bei jeder Änderung an der App VERSION erhöhen, damit Geräte das Update bekommen.
-const VERSION = 'v1.2.0';
+const VERSION = 'v1.3.0';
 const CACHE = 'englisch-' + VERSION;
 
 const FILES = [
@@ -20,6 +20,7 @@ const FILES = [
   './js/data/grammar.js',
   './js/data/levels.js',
   './js/data/level-topics.js',
+  './js/data/level-examples.js',
   './icons/icon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',

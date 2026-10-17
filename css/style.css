@@ -330,3 +330,8 @@ legend { font-weight: 600; font-size: .9rem; padding: 0 6px; }
 .pos { font-style: normal; font-size: .72rem; color: var(--muted); background: var(--surface-2); border-radius: 99px; padding: 1px 7px; margin-left: 4px; }
 .q-pos { font-size: .75rem; font-weight: 600; color: var(--muted); background: var(--surface-2); border-radius: 99px; padding: 2px 9px; }
 .level-checks { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; }
+
+/* Beispielsatz in der Wortliste (antippen = vorlesen) */
+.wl-ex { all: unset; cursor: pointer; font-style: italic; font-size: .85rem; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+.wl-ex:hover { color: var(--primary); }
+.wl-ex:focus-visible { outline: 2px solid var(--primary); border-radius: 4px; }
